@@ -1,6 +1,6 @@
 from __future__ import print_function
 import httplib2
-import os, io
+import os, io, csv
 from apiclient import discovery
 from oauth2client import client
 from oauth2client import tools
@@ -14,11 +14,15 @@ except ImportError:
 import auth
 #IG
 from InstagramAPI import InstagramAPI
+#Time
+from time import gmtime, strftime
+
 username = "dictador_del_buen_gusto"
 password = "Ch$ris%tian1/"
 #Paths
 TextPath = "Utiles/description.txt"
 ImagePath = "Utiles/photo.jpeg"
+ExcelPath = "Utiles/excel.csv"
 #Parte de Google Drive
 
 SCOPES = 'https://www.googleapis.com/auth/drive'
@@ -77,30 +81,76 @@ def searchFile(size,query):
     items = results.get('files', [])
     if not items:
         print('No files found.')
+        return False
     else:
         print('Files:')
         for item in items:
             print(item)
             print('{0} ({1})'.format(item['name'], item['id']))
             return item['id']
-def DownloadPhotoDescription():
-
-    Description = searchFile(1, "name contains 'textoInsta' ")
-    Photo = searchFile(1, "name contains 'fotoInsta'")
-    downloadDocuments(Description, TextPath)
-    downloadFile(Photo, ImagePath)
-
-DownloadPhotoDescription()
+def DownloadPhotoAndDescription(ListaOrden, index = 0, DescriptionContains = 'textoInsta', PhotoContains = 'fotoInsta'):
+    Description = searchFile(1, "name contains '%s%s' " %(DescriptionContains, ListaOrden[index][0][0]) )
+    Photo = searchFile(1, "name contains '%s%s' " % (PhotoContains, ListaOrden[index][0][0]) )
+    if(Description != False and Photo != False ):
+        downloadDocuments(Description, TextPath)
+        downloadFile(Photo, ImagePath)
+    else:
+        print("\n\n\nNo se han podido descargar los archivos debido a que no se encontraron, compruebe que tenga todo escrito correctamente \n\n\n")
 
 #Parte de manipulacion de archivos
+def HoraDeExcel(ExcPath, ExcelContains = 'excelInsta'):
+    Excel = searchFile(1, "name contains '%s' " % ExcelContains)
+    downloadDocuments(Excel, ExcPath, 'text/csv')
+    Horas = []
+    with open(ExcPath, 'rb') as csvfile:
+        reader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+        for row in reader:
+            Horas.append(row) #Horas es una matriz cuyas filas son orden, hora, minuto
+            
+    return Horas
+
+
 
 archivoTexto = open(TextPath, "r")
 texto = archivoTexto.read()
 
-#Parte de instagram
 
-InstagramAPI1 = InstagramAPI(username, password)    
-InstagramAPI1.login()  # login
-photo_path = ImagePath
-caption = texto
-InstagramAPI.uploadPhoto(photo_path, caption=caption)
+
+class Instagram:
+
+    def __init__(self, username, password):
+        self.username = username
+        self.password = password
+        self.InstagramAPI1 = InstagramAPI(self.username, self.password)
+
+    def login(self):
+        self.InstagramAPI1.login()
+
+    def uploadPhoto(self, photo_path, caption):
+        self.InstagramAPI1.uploadPhoto(photo_path, caption)
+
+
+
+#DownloadPhotoAndDescription(horas, 1)
+
+#print(strftime("%H:%M"))
+
+
+def str2list(lista): # ['1, 2, 3'] --> [1, 2, 3]
+    listaFinal = []
+    for e in lista:
+        lista2 = [x.split(",") for x in e]
+        listaFinal.append ( [int(x) for x in lista2[0]] )
+    return listaFinal
+
+def publicarEnHorario(horas):
+    lista = str2list(horas)
+    listaHorasMinutos = [[x[1], x[2]] for x in lista]
+    listaIndices = [x[0] for x in lista]
+    print(listaIndices)
+    for i in range(len(listaIndices)):
+        if(int(strftime("%H")) == listaHorasMinutos[i][0] and int(strftime("%M")) == listaHorasMinutos[i][1] ):
+            print("hola jeje")
+
+horas = HoraDeExcel(ExcelPath)
+publicarEnHorario(horas)
